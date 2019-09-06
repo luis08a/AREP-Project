@@ -3,6 +3,7 @@ package edu.eci.arep.framework.core;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
@@ -30,14 +31,22 @@ import org.reflections.scanners.SubTypesScanner;
 public class Service {
     private Map<String, Handler> URLHandler = new HashMap<String, Handler>();
 
+    static int getPort() {
+        if (System.getenv("PORT") != null) {
+            return Integer.parseInt(System.getenv("PORT"));
+        }
+        return 4567; // returns default port if heroku-port isn't set (i.e.on localhost)
+    }
+
     public void listen() throws IOException {
+        int PORT = getPort();
         while (true) {
 
             ServerSocket serverSocket = null;
             try {
-                serverSocket = new ServerSocket(35000);
+                serverSocket = new ServerSocket(PORT);
             } catch (IOException e) {
-                System.err.println("Could not listen on port: 35000.");
+                System.err.println("Could not listen on port: " + PORT + ".");
                 System.exit(1);
             }
             Socket clientSocket = null;
@@ -48,7 +57,8 @@ public class Service {
                 System.exit(1);
             }
             while (!clientSocket.isClosed()) {
-                PrintWriter out = new PrintWriter(new OutputStreamWriter(clientSocket.getOutputStream(), StandardCharsets.UTF_8), true);
+                PrintWriter out = new PrintWriter(
+                        new OutputStreamWriter(clientSocket.getOutputStream(), StandardCharsets.UTF_8), true);
                 BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
                 String inputLine, outputLine;
                 while ((inputLine = in.readLine()) != null) {
@@ -58,7 +68,7 @@ public class Service {
                         if (path.contains("apps") && path.contains("?")) {
                             int i = path.indexOf("?");
                             String[] param = path.substring(i + 1).split("=");
-                            String s = path.substring(path.indexOf("apps/"),i);
+                            String s = path.substring(path.indexOf("apps/"), i);
                             if (URLHandler.containsKey(s)) {
                                 String response = URLHandler.get(s).process(new String[] { param[1] });
                                 handleGetRequest("202 OK", "text/html", out, response);
@@ -74,18 +84,17 @@ public class Service {
                                 handleGetRequest("404 Not Found", "text/html", out, "Not Found");
                             }
                         } else {
-                            if(path.contains(".")){
-                                handleFile(out, path);
-                            }
-                            else{
-                                System.out.println(System.getProperty("user.dir")+path);
+                            if (path.contains(".")) {
+                                handleFile(out, path, clientSocket);
+                            } else {
+                                System.out.println(System.getProperty("user.dir") + path);
                                 outputLine = "<!DOCTYPE html>" + "<html>" + "<head>" + "<metacharset=\"UTF-8\">"
-                                        + "<title>Title of the document</title>\n" + "</head>" + "<body>" + "My Web Framework"
-                                        + "</body>" + "</html>";
-                                    
+                                        + "<title>Title of the document</title>\n" + "</head>" + "<body>"
+                                        + "My Web Framework" + "</body>" + "</html>";
+
                                 handleGetRequest("200 OK", "text/html", out, outputLine);
                             }
-                            
+
                         }
                     }
                     out.close();
@@ -115,7 +124,7 @@ public class Service {
         }
     }
 
-    private void handleFile(PrintWriter out, String source) throws IOException {
+    private void handleFile(PrintWriter out, String source, Socket socket) {
         String path = System.getProperty("user.dir") + source;
         BufferedReader br = null;
         try {
@@ -123,26 +132,30 @@ public class Service {
         } catch (Exception e) {
             error(out);
         }
-        if (path.contains(".html")) {
-            String content="",temp;
-            while ((temp = br.readLine()) != null)
-                content+=temp;
-            br.close();
-            handleGetRequest("200 OK", "text/html", out, content);
-        } else if (path.contains(".jpg")) {
-            // out.println("HTTP/1.1 200 OK\r");
-            // out.println("Content-Type: image/jpg\r");
-            // out.println("\r");
-            // BufferedImage image = ImageIO.read(new File(System.getProperty("user.dir") +
-            // source));
-            // ImageIO.write(image, "JPG", clientSocket.getOutputStream());
+        try {
+            if (path.contains(".html")) {
+                String content = "", temp;
+                while ((temp = br.readLine()) != null)
+                    content += temp;
+                br.close();
+                handleGetRequest("200 OK", "text/html", out, content);
+            } else if (path.contains(".jpg")) {
+                BufferedImage image = ImageIO.read(new File(System.getProperty("user.dir") + source));
+                ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                ImageIO.write(image, "jpg", bos);
+                byte[] byteOSArray = bos.toByteArray();
+                DataOutputStream outImg = new DataOutputStream(socket.getOutputStream());
+                outImg.writeBytes("HTTP/1.1 200 OK \r\n");
+                outImg.writeBytes("Content-Type: image/jpg\r\n");
+                outImg.writeBytes("Content-Length: " + byteOSArray.length);
+                outImg.writeBytes("\r\n\r\n");
+                outImg.write(byteOSArray);
+                outImg.close();
+                out.println(outImg.toString());
+            }
+        } catch (Exception e) {
+            error(out);
         }
-    }
-
-    private void handleGetRequest(String code, String mymeType, PrintWriter out) {
-        out.write("HTTP/1.1 " + code + "\r\n");
-        out.write("Content-Type: " + mymeType + "\r\n");
-        out.write("\r\n");
     }
 
     private void handleGetRequest(String code, String mymeType, PrintWriter out, String content) {
