@@ -39,14 +39,14 @@ public class Service {
     }
 
     public void listen() throws IOException {
-        int PORT = getPort();
+        int port = getPort();
         while (true) {
 
             ServerSocket serverSocket = null;
             try {
-                serverSocket = new ServerSocket(PORT);
+                serverSocket = new ServerSocket(port);
             } catch (IOException e) {
-                System.err.println("Could not listen on port: " + PORT + ".");
+                System.err.println("Could not listen on port: " + port + ".");
                 System.exit(1);
             }
             Socket clientSocket = null;
@@ -87,7 +87,6 @@ public class Service {
                             if (path.contains(".")) {
                                 handleFile(out, path, clientSocket);
                             } else {
-                                System.out.println(System.getProperty("user.dir") + path);
                                 outputLine = "<!DOCTYPE html>" + "<html>" + "<head>" + "<metacharset=\"UTF-8\">"
                                         + "<title>Title of the document</title>\n" + "</head>" + "<body>"
                                         + "My Web Framework" + "</body>" + "</html>";
@@ -158,10 +157,11 @@ public class Service {
     }
 
     private void handleGetRequest(String code, String mymeType, PrintWriter out, String content) {
-        out.println("HTTP/1.1 " + code + "\r");
-        out.println("Content-Type: " + mymeType + "\r");
-        out.println("\r");
-        out.println(content);
+        
+        out.write("HTTP/1.1 " + code + "\r\n");
+        out.write("Content-Type: " + mymeType + "\r\n");
+        out.write("\r\n");
+        out.write(content);
     }
 
     private void error(PrintWriter out) {
