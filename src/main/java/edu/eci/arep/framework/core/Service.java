@@ -13,8 +13,6 @@ import java.io.PrintWriter;
 import java.lang.reflect.Method;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.URL;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -30,6 +28,7 @@ import org.reflections.scanners.SubTypesScanner;
  */
 public class Service {
     private Map<String, Handler> URLHandler = new HashMap<String, Handler>();
+    private static String STATICFILES="/src/main/resources";
 
     static int getPort() {
         if (System.getenv("PORT") != null) {
@@ -66,15 +65,19 @@ public class Service {
                     if (inputLine.contains("GET")) {
                         String path = inputLine.split(" ")[1];
                         if (path.contains("apps/") && path.contains("?")) {
-                            int i = path.indexOf("?");
-                            String[] param = path.substring(i + 1).split("=");
-                            String s = path.substring(path.indexOf("apps/"), i);
-                            if (URLHandler.containsKey(s)) {
-                                System.out.println(param[1]);
-                                String response = URLHandler.get(s).process(new String[] { param[1] });
-                                handleGetRequest("202 OK", "text/html", out, response);
-                            } else {
-                                handleGetRequest("404 Not Found", "text/html", out, "Not Found");
+                            try {
+                                int i = path.indexOf("?");
+                                String[] param = path.substring(i + 1).split("=");
+                                String s = path.substring(path.indexOf("apps/"), i);
+                                if (URLHandler.containsKey(s)) {
+                                    System.out.println(param[1]);
+                                    String response = URLHandler.get(s).process(new String[] { param[1] });
+                                    handleGetRequest("202 OK", "text/html", out, response);
+                                } else {
+                                    handleGetRequest("404 Not Found", "text/html", out, "Not Found");
+                                }
+                            } catch (Exception e) {
+                                error(out);
                             }
                         } else if (path.contains("/apps/") && !path.contains("?")) {
                             String s = path.substring(path.indexOf("apps/"));
@@ -85,7 +88,10 @@ public class Service {
                                 handleGetRequest("404 Not Found", "text/html", out, "Not Found");
                             }
                         } else {
-                            if (path.contains(".")) {
+                            if(path.equals("/")){
+                                handleFile(out, "/index.html", clientSocket);
+                            }
+                            else if (path.contains(".")) {
                                 handleFile(out, path, clientSocket);
                             } else {
                                 outputLine = "<!DOCTYPE html>" + "<html>" + "<head>" + "<metacharset=\"UTF-8\">"
@@ -124,7 +130,7 @@ public class Service {
     }
 
     private void handleFile(PrintWriter out, String source, Socket socket) {
-        String path = System.getProperty("user.dir") + source;
+        String path = System.getProperty("user.dir")+STATICFILES + source;
         BufferedReader br = null;
         try {
             br = new BufferedReader(new FileReader(path));
@@ -169,6 +175,6 @@ public class Service {
         out.write("HTTP/1.1 404 Not Found\r\n");
         out.write("Content-Type: text/html\r\n");
         out.write("\r\n");
-        out.write("Try again.");
+        out.write("Error Found. \n Try again.");
     }
 }
