@@ -74,12 +74,18 @@ public class Service {
                                 handleGetRequest("404 Not Found", "text/html", out, "Not Found");
                             }
                         } else {
-                            System.out.println(System.getProperty("user.dir")+path);
-                            outputLine = "<!DOCTYPE html>" + "<html>" + "<head>" + "<metacharset=\"UTF-8\">"
-                                    + "<title>Title of the document</title>\n" + "</head>" + "<body>" + "My Web Site"
-                                    + "</body>" + "</html>";
-                            //handleGetRequest("200 OK", "text/html", out, outputLine);
-                            handleFile(out, path);
+                            if(path.contains(".")){
+                                handleFile(out, path);
+                            }
+                            else{
+                                System.out.println(System.getProperty("user.dir")+path);
+                                outputLine = "<!DOCTYPE html>" + "<html>" + "<head>" + "<metacharset=\"UTF-8\">"
+                                        + "<title>Title of the document</title>\n" + "</head>" + "<body>" + "My Web Framework"
+                                        + "</body>" + "</html>";
+                                    
+                                handleGetRequest("200 OK", "text/html", out, outputLine);
+                            }
+                            
                         }
                     }
                     out.close();
