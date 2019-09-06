@@ -10,10 +10,10 @@ public class WebServiceHello {
 
     @Web("cuadrado")
     public static String square() {
-        return "<p>Hello</p>";
+        return "<p>Hello i'm a simple square</p>";
     }
-    
-    public static String square(String p) {
-        return "<p>"+p+"</p>";
+    @Web("template")
+    public static String textTemplate(String p) {
+        return "<h1>I could be an awesome template</h1><p>with the text from the query string: "+p+"</p>";
     }
 }

@@ -65,17 +65,18 @@ public class Service {
                     System.out.println("Received: " + inputLine);
                     if (inputLine.contains("GET")) {
                         String path = inputLine.split(" ")[1];
-                        if (path.contains("apps") && path.contains("?")) {
+                        if (path.contains("apps/") && path.contains("?")) {
                             int i = path.indexOf("?");
                             String[] param = path.substring(i + 1).split("=");
                             String s = path.substring(path.indexOf("apps/"), i);
                             if (URLHandler.containsKey(s)) {
+                                System.out.println(param[1]);
                                 String response = URLHandler.get(s).process(new String[] { param[1] });
                                 handleGetRequest("202 OK", "text/html", out, response);
                             } else {
                                 handleGetRequest("404 Not Found", "text/html", out, "Not Found");
                             }
-                        } else if (path.contains("apps") && !path.contains("?")) {
+                        } else if (path.contains("/apps/") && !path.contains("?")) {
                             String s = path.substring(path.indexOf("apps/"));
                             if (URLHandler.containsKey(s)) {
                                 String response = URLHandler.get(s).process();
@@ -165,8 +166,9 @@ public class Service {
     }
 
     private void error(PrintWriter out) {
-        out.println("HTTP/1.1 404 Not Found\r");
-        out.println("Content-Type: text/html\r");
-        out.println("\r");
+        out.write("HTTP/1.1 404 Not Found\r\n");
+        out.write("Content-Type: text/html\r\n");
+        out.write("\r\n");
+        out.write("Try again.");
     }
 }
