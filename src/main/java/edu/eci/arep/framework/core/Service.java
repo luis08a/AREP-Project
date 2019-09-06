@@ -91,7 +91,6 @@ public class Service {
                                 outputLine = "<!DOCTYPE html>" + "<html>" + "<head>" + "<metacharset=\"UTF-8\">"
                                         + "<title>Title of the document</title>\n" + "</head>" + "<body>"
                                         + "My Web Framework" + "</body>" + "</html>";
-
                                 handleGetRequest("200 OK", "text/html", out, outputLine);
                             }
 
@@ -159,16 +158,15 @@ public class Service {
     }
 
     private void handleGetRequest(String code, String mymeType, PrintWriter out, String content) {
-        out.write("HTTP/1.1 " + code + "\r\n");
-        out.write("Content-Type: " + mymeType + "\r\n");
-        out.write("\r\n");
-        out.write(content);
+        out.println("HTTP/1.1 " + code + "\r");
+        out.println("Content-Type: " + mymeType + "\r");
+        out.println("\r");
+        out.println(content);
     }
 
     private void error(PrintWriter out) {
-        out.write("HTTP/1.1 " + "404 Not Found" + "\r\n");
-        out.write("Content-Type: " + "text/html" + "\r\n");
-        out.write("\r\n");
-        out.write("Error");
+        out.println("HTTP/1.1 404 Not Found\r");
+        out.println("Content-Type: text/html\r");
+        out.println("\r");
     }
 }
