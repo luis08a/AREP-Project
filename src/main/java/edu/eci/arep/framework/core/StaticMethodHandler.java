@@ -18,7 +18,17 @@ public class StaticMethodHandler implements Handler {
     @Override
     public String process() {
         try {
-            m.invoke(null, null);
+            return (String) m.invoke(null, null);
+        } catch (Exception e) {
+            System.err.println(e.getStackTrace());
+        }
+        return null;
+    }
+
+    @Override
+    public String process(String[] params) {
+        try {
+            return (String)m.invoke(null, params);
         } catch (Exception e) {
         }
         return null;

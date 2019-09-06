@@ -6,4 +6,5 @@ package edu.eci.arep.framework.core;
 public interface Handler {
 
     String process();
+    String process(String params[]);
 }

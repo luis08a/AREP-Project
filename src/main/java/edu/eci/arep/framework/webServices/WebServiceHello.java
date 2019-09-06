@@ -12,4 +12,8 @@ public class WebServiceHello {
     public static String square() {
         return "<p>Hello</p>";
     }
+    
+    public static String square(String p) {
+        return "<p>"+p+"</p>";
+    }
 }
