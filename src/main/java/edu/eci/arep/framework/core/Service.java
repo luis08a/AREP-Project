@@ -145,7 +145,7 @@ public class Service {
                 br.close();
                 handleGetRequest("200 OK", "text/html", out, content);
             } else if (path.contains(".jpg")) {
-                BufferedImage image = ImageIO.read(new File(System.getProperty("user.dir") + source));
+                BufferedImage image = ImageIO.read(new File(path));
                 ByteArrayOutputStream bos = new ByteArrayOutputStream();
                 ImageIO.write(image, "jpg", bos);
                 byte[] byteOSArray = bos.toByteArray();
