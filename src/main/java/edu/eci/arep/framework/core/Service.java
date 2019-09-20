@@ -11,7 +11,6 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.lang.reflect.Method;
-import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -26,111 +25,90 @@ import org.reflections.scanners.SubTypesScanner;
 /**
  * Service
  */
-public class Service {
-    private Map<String, Handler> URLHandler = new HashMap<String, Handler>();
-    private static String STATICFILES="/src/main/resources";
+public class Service implements Runnable {
+    private static Map<String, Handler> URLHandler = new HashMap<String, Handler>();
+    private static String STATICFILES = "/src/main/resources";
+    private final Socket clientSocket;
 
-    static int getPort() {
-        if (System.getenv("PORT") != null) {
-            return Integer.parseInt(System.getenv("PORT"));
-        }
-        return 4567; // returns default port if heroku-port isn't set (i.e.on localhost)
+    Service(Socket socket) {
+        this.clientSocket = socket;
     }
 
     public void listen() throws IOException {
-        int port = getPort();
-        while (true) {
-
-            ServerSocket serverSocket = null;
-            try {
-                serverSocket = new ServerSocket(port);
-            } catch (IOException e) {
-                System.err.println("Could not listen on port: " + port + ".");
-                System.exit(1);
-            }
-            Socket clientSocket = null;
-            try {
-                clientSocket = serverSocket.accept();
-            } catch (IOException e) {
-                System.err.println("Accept failed.");
-                System.exit(1);
-            }
-            while (!clientSocket.isClosed()) {
-                PrintWriter out = new PrintWriter(
-                        new OutputStreamWriter(clientSocket.getOutputStream(), StandardCharsets.UTF_8), true);
-                BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                String inputLine, outputLine;
-                while ((inputLine = in.readLine()) != null) {
-                    System.out.println("Received: " + inputLine);
-                    if (inputLine.contains("GET")) {
-                        String path = inputLine.split(" ")[1];
-                        if (path.contains("apps/") && path.contains("?")) {
-                            try {
-                                int i = path.indexOf("?");
-                                String[] param = path.substring(i + 1).split("=");
-                                String s = path.substring(path.indexOf("apps/"), i);
-                                if (URLHandler.containsKey(s)) {
-                                    System.out.println(param[1]);
-                                    String response = URLHandler.get(s).process(new String[] { param[1] });
-                                    handleGetRequest("202 OK", "text/html", out, response);
-                                } else {
-                                    handleGetRequest("404 Not Found", "text/html", out, "Not Found");
-                                }
-                            } catch (Exception e) {
-                                error(out);
-                            }
-                        } else if (path.contains("/apps/") && !path.contains("?")) {
-                            String s = path.substring(path.indexOf("apps/"));
+        while (!clientSocket.isClosed()) {
+            PrintWriter out = new PrintWriter(
+                    new OutputStreamWriter(clientSocket.getOutputStream(), StandardCharsets.UTF_8), true);
+            BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+            String inputLine, outputLine;
+            while ((inputLine = in.readLine()) != null) {
+                System.out.println("Received: " + inputLine);
+                if (inputLine.contains("GET")) {
+                    String path = inputLine.split(" ")[1];
+                    if (path.contains("apps/") && path.contains("?")) {
+                        try {
+                            int i = path.indexOf("?");
+                            String[] param = path.substring(i + 1).split("=");
+                            String s = path.substring(path.indexOf("apps/"), i);
                             if (URLHandler.containsKey(s)) {
-                                String response = URLHandler.get(s).process();
+                                System.out.println(param[1]);
+                                String response = URLHandler.get(s).process(new String[] { param[1] });
                                 handleGetRequest("202 OK", "text/html", out, response);
                             } else {
                                 handleGetRequest("404 Not Found", "text/html", out, "Not Found");
                             }
-                        } else {
-                            if(path.equals("/")){
-                                handleFile(out, "/index.html", clientSocket);
-                            }
-                            else if (path.contains(".")) {
-                                handleFile(out, path, clientSocket);
-                            } else {
-                                outputLine = "<!DOCTYPE html>" + "<html>" + "<head>" + "<metacharset=\"UTF-8\">"
-                                        + "<title>Title of the document</title>\n" + "</head>" + "<body>"
-                                        + "My Web Framework" + "</body>" + "</html>";
-                                handleGetRequest("200 OK", "text/html", out, outputLine);
-                            }
-
+                        } catch (Exception e) {
+                            error(out);
                         }
-                    }
-                    out.close();
-                    if (!in.ready()) {
-                        break;
+                    } else if (path.contains("/apps/") && !path.contains("?")) {
+                        String s = path.substring(path.indexOf("apps/"));
+                        if (URLHandler.containsKey(s)) {
+                            String response = URLHandler.get(s).process();
+                            handleGetRequest("202 OK", "text/html", out, response);
+                        } else {
+                            handleGetRequest("404 Not Found", "text/html", out, "Not Found");
+                        }
+                    } else {
+                        if (path.equals("/")) {
+                            handleFile(out, "/index.html", clientSocket);
+                        } else if (path.contains(".")) {
+                            handleFile(out, path, clientSocket);
+                        } else {
+                            outputLine = "<!DOCTYPE html>" + "<html>" + "<head>" + "<metacharset=\"UTF-8\">"
+                                    + "<title>Title of the document</title>\n" + "</head>" + "<body>"
+                                    + "My Web Framework" + "</body>" + "</html>";
+                            handleGetRequest("200 OK", "text/html", out, outputLine);
+                        }
+
                     }
                 }
-                in.close();
-
+                out.close();
+                if (!in.ready()) {
+                    break;
+                }
             }
-            clientSocket.close();
-            serverSocket.close();
+            in.close();
+
         }
 
     }
 
-    public void initialize() {
-        Reflections reflections = new Reflections("edu.eci.arep.framework.webServices", new SubTypesScanner(false));
+    public static void initialize() {
+        if (URLHandler.isEmpty()) {
+            Reflections reflections = new Reflections("edu.eci.arep.framework.webServices", new SubTypesScanner(false));
 
-        Set<Class<?>> allClasses = reflections.getSubTypesOf(Object.class);
-        for (Class<?> c : allClasses) {
-            for (Method m : c.getDeclaredMethods()) {
-                if (m.isAnnotationPresent(Web.class)) {
-                    URLHandler.put("apps/" + m.getAnnotation(Web.class).value(), new StaticMethodHandler(m));
+            Set<Class<?>> allClasses = reflections.getSubTypesOf(Object.class);
+            for (Class<?> c : allClasses) {
+                for (Method m : c.getDeclaredMethods()) {
+                    if (m.isAnnotationPresent(Web.class)) {
+                        URLHandler.put("apps/" + m.getAnnotation(Web.class).value(), new StaticMethodHandler(m));
+                    }
                 }
             }
         }
     }
 
     private void handleFile(PrintWriter out, String source, Socket socket) {
-        String path = System.getProperty("user.dir")+STATICFILES + source;
+        String path = System.getProperty("user.dir") + STATICFILES + source;
         BufferedReader br = null;
         try {
             br = new BufferedReader(new FileReader(path));
@@ -164,7 +142,7 @@ public class Service {
     }
 
     private void handleGetRequest(String code, String mymeType, PrintWriter out, String content) {
-        
+
         out.write("HTTP/1.1 " + code + "\r\n");
         out.write("Content-Type: " + mymeType + "\r\n");
         out.write("\r\n");
@@ -176,5 +154,15 @@ public class Service {
         out.write("Content-Type: text/html\r\n");
         out.write("\r\n");
         out.write("Error Found. \n Try again.");
+    }
+
+    @Override
+    public void run() {
+        try {
+            listen();
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
     }
 }

@@ -8,13 +8,12 @@ import java.io.IOException;
 public class Driver {
 
     public static void main(String[] args) {
-        Service s = new Service();
-        s.initialize();
         try {
-            s.listen();
+            ConcurrentService s = new ConcurrentService(10);
+            new Thread(s).start();
         } catch (IOException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         }
+        
     }
 }
